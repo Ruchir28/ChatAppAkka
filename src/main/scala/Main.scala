@@ -1,4 +1,4 @@
-import actors.{ChatRoom, GetUserActor, SetOutGoingActor, User, UserManager}
+import actors.{ChatGroupMessage, ChatRoom, GetUserActor, InvalidConfig, JoinChatRoom, SetOutGoingActor, User, UserCommand, UserManager}
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
@@ -10,6 +10,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.Timeout
+import play.api.libs.json.Json
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -23,18 +24,6 @@ object Main extends App{
 
 
   val userManager = actorSystem.actorOf(Props(new UserManager(actorSystem)))
-
-
-  //  val chatRoom = actorSystem.actorOf(Props[ChatRoom],"ChatRoom1")
-//
-//  val user1 = actorSystem.actorOf(Props(new User("John")),"USER1")
-//  val user2 = actorSystem.actorOf(Props(new User("Anik")),"USER2")
-//
-//  chatRoom ! JoinRoom(user1)
-//  chatRoom ! JoinRoom(user2)
-//
-//
-//  chatRoom ! BroadCastMessage(user1,"Hello There !!")
 
   def websocketFlow(username: String) : Flow[Message, Message, _] = {
 
@@ -53,10 +42,34 @@ object Main extends App{
       NotUsed
     }
 
-    val incomingMessages: Sink[Message, _] = Flow[Message].map {
-      case TextMessage.Strict(text) => userActorFuture.map(_ ! text)
-      case _ => // handle other types of messages, or ignore them
-    }.to(Sink.ignore)
+    def ParseMessages(inputJson: String): UserCommand = {
+      val json = Json.parse(inputJson)
+      val command: String = (json \ "command").as[String]
+      command match {
+        case "JoinRoom" => {
+          val roomId = (json \ "roomId").as[String]
+          if(roomId.isEmpty || roomId.equals("")) {
+            InvalidConfig(s"Invlaid Room Id: $roomId")
+          } else {
+            JoinChatRoom(roomId)
+          }
+        }
+        case "Message" => {
+          val message = (json \ "message").as[String]
+          val roomId =  (json \ "roomId").as[String]
+          ChatGroupMessage(message = message, chatRoom = roomId)
+        }
+        case value: Any => {
+          InvalidConfig(s"Invalid Command $value from user")
+        }
+      }
+    }
+
+    val incomingMessages: Sink[Message, _] = Flow[Message]
+      .collect{ case TextMessage.Strict(text) => text }
+      .map(ParseMessages)
+      .map {command => userActorFuture.map(_ ! command)}
+      .to(Sink.ignore)
 
     Flow.fromSinkAndSourceCoupled(incomingMessages, outgoingMessages)
   }
