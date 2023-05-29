@@ -9,6 +9,7 @@ case class JoinChatRoom(chatRoomId: String) extends UserCommand
 case class InvalidConfig(message: String) extends UserCommand
 
 case class ChatGroupMessage(message: String,chatRoom: String) extends UserCommand
+case class ReceiveMessage(message: String, chatRoom: String) extends UserCommand
 case class User(name: String) extends Actor {
 
   var outgoingActorRef: ActorRef = null
@@ -17,13 +18,23 @@ case class User(name: String) extends Actor {
       println(s"Message for $name is \"$message\" ")
       outgoingActorRef ! TextMessage.Strict(s"Echo: $message")
     }
+
+    case ReceiveMessage(message: String, chatRoom: String) => {
+      val msg = s"Message : \"$message\" in Chatroom: $chatRoom"
+      outgoingActorRef ! TextMessage.Strict(msg)
+    }
+
     case ChatGroupMessage(message,chatRoom) => {
       println(s"Message by $name is \"$message\" to Chatroom: $chatRoom")
-      outgoingActorRef ! TextMessage.Strict(s"Echo: $message")
+      val chatRoomManager = context.actorSelection(s"/user/ChatRoomManager")
+      chatRoomManager ! SendMessage(chatRoom,message)
+//      outgoingActorRef ! TextMessage.Strict(s"Echo: $message")
     }
 
     case JoinChatRoom(chatRoomId: String) => {
       println(s"$name requested to Join: $chatRoomId")
+      val chatRoomManager = context.actorSelection(s"/user/ChatRoomManager")
+      chatRoomManager ! JoinRoom(roomId = chatRoomId)
     }
     case InvalidConfig(message) => outgoingActorRef ! TextMessage.Strict(s"Invalid Config: $message")
 

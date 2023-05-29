@@ -1,20 +1,29 @@
 package actors
 
 import akka.actor.{Actor, ActorRef}
-import utils.{JoinRoom, LeaveRoom, BroadCastMessage}
 
-class ChatRoom extends Actor {
+case class ActorJoinRoom(user: ActorRef)
+case class LeaveRoom(user: ActorRef)
+case class BroadCastMessage(sender: ActorRef, message: String)
+class ChatRoom(roomId: String) extends Actor {
 
   var users: Set[ActorRef] = Set.empty
   override def receive: Receive = {
-    case JoinRoom(user: ActorRef) => {
-      users += user
+    case ActorJoinRoom(user: ActorRef) => {
+      println(s"User -> $user Joined Room")
+      users = users + user
     }
     case LeaveRoom(user: ActorRef) => {
-      users -= user
+      users = users - user
     }
     case BroadCastMessage(sender: ActorRef,message: String) => {
-      users.foreach(user => user ! message)
+      println(s"Received a Message Request for ChatRoom $message")
+      users.foreach(user => user ! ReceiveMessage(message = message, chatRoom = roomId))
     }
   }
 }
+
+
+// USER -> ROOM MANAGER(ROOM_ID)
+
+// ROOM MANAGHER

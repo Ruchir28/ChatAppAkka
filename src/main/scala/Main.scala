@@ -1,4 +1,4 @@
-import actors.{ChatGroupMessage, ChatRoom, GetUserActor, InvalidConfig, JoinChatRoom, SetOutGoingActor, User, UserCommand, UserManager}
+import actors.{ChatGroupMessage, ChatRoomManager, GetUserActor, InvalidConfig, JoinChatRoom, SetOutGoingActor, UserCommand, UserManager}
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Directives.{handleWebSocketMessages, path}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.OverflowStrategy
 import akka.util.Timeout
 import play.api.libs.json.Json
 
@@ -19,11 +19,11 @@ import scala.util.{Failure, Success}
 
 
 object Main extends App{
-  implicit val actorSystem = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+  implicit val actorSystem = ActorSystem("Main")
 
 
-  val userManager = actorSystem.actorOf(Props(new UserManager(actorSystem)))
+  val userManager = actorSystem.actorOf(Props(new UserManager(actorSystem)),"UserManager")
+  val chatRoomManager = actorSystem.actorOf(Props[ChatRoomManager],"ChatRoomManager")
 
   def websocketFlow(username: String) : Flow[Message, Message, _] = {
 
@@ -43,6 +43,8 @@ object Main extends App{
     }
 
     def ParseMessages(inputJson: String): UserCommand = {
+      println(userManager)
+      println(chatRoomManager)
       val json = Json.parse(inputJson)
       val command: String = (json \ "command").as[String]
       command match {
