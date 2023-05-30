@@ -10,7 +10,7 @@ class UserManager(system: ActorSystem) extends Actor {
     case GetUserActor(name: String) => {
       if(userMap.contains(name)) {
         sender() ! userMap(name)
-      }else {
+      } else {
         val userActor = system.actorOf(Props(new User(name)))
         userMap = userMap + (name -> userActor)
         sender() ! userActor

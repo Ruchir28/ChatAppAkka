@@ -1,4 +1,4 @@
-import actors.{ChatGroupMessage, ChatRoomManager, GetUserActor, InvalidConfig, JoinChatRoom, SetOutGoingActor, UserCommand, UserManager}
+import actors.{ChatGroupMessage, ChatRoomManager, DirectMessage, GetUserActor, InvalidConfig, JoinChatRoom, SetOutGoingActor, UserCommand, UserManager}
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
@@ -43,8 +43,6 @@ object Main extends App{
     }
 
     def ParseMessages(inputJson: String): UserCommand = {
-      println(userManager)
-      println(chatRoomManager)
       val json = Json.parse(inputJson)
       val command: String = (json \ "command").as[String]
       command match {
@@ -60,6 +58,11 @@ object Main extends App{
           val message = (json \ "message").as[String]
           val roomId =  (json \ "roomId").as[String]
           ChatGroupMessage(message = message, chatRoom = roomId)
+        }
+        case "DirectMessage" => {
+          val message = (json \ "message").as[String]
+          val userName = (json \ "userName").as[String]
+          DirectMessage(message = message, toUser = userName)
         }
         case value: Any => {
           InvalidConfig(s"Invalid Command $value from user")

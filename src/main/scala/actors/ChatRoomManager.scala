@@ -2,7 +2,7 @@ package actors
 
 import akka.actor.{Actor, ActorRef, Props}
 case class JoinRoom(roomId : String)
-case class SendMessage(roomId: String, message: String)
+case class SendMessage(roomId: String, message: String, user: String)
 class ChatRoomManager extends Actor {
 
   var roomIdMap: Map[String,ActorRef] = Map()
@@ -17,9 +17,9 @@ class ChatRoomManager extends Actor {
         new_room ! ActorJoinRoom(sender())
       }
     }
-    case SendMessage(roomId,message) => {
+    case SendMessage(roomId,message,user) => {
       val roomActor = roomIdMap(roomId)
-      roomActor ! BroadCastMessage(sender(),message)
+      roomActor ! BroadCastMessage(sender(),message,user)
     }
 
   }
